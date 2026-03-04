@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>유튜브 댓글 분석 대시보드</title>
+    <!-- Tailwind CSS for Modern UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+        .highlight-bg { background-color: #eff6ff; border-left: 4px solid #3b82f6; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header Section -->
+        <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-800">유튜브 댓글 분석 대시보드</h1>
+                <p class="text-slate-500 mt-1">데이터 기반 댓글 통계 및 인사이트</p>
+            </div>
+            <div class="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-slate-200">
+                <span class="text-sm font-semibold text-slate-600 px-2 whitespace-nowrap">영상 제목:</span>
+                <input type="text" id="videoTitle" placeholder="영상 이름을 입력하세요" class="outline-none border-none text-blue-600 font-medium w-full md:w-64" value="분석 대상 영상">
+            </div>
+        </header>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="card p-6 border-b-4 border-blue-500">
+                <p class="text-sm text-slate-500 font-medium">총 댓글 수</p>
+                <h2 id="totalComments" class="text-3xl font-bold text-slate-800">0</h2>
+            </div>
+            <div class="card p-6 border-b-4 border-green-500">
+                <p class="text-sm text-slate-500 font-medium">평균 좋아요 수</p>
+                <h2 id="avgLikes" class="text-3xl font-bold text-slate-800">0</h2>
+            </div>
+            <div class="card p-6 border-b-4 border-purple-500">
+                <p class="text-sm text-slate-500 font-medium">총 답글 수</p>
+                <h2 id="totalReplies" class="text-3xl font-bold text-slate-800">0</h2>
+            </div>
+            <div class="card p-6 border-b-4 border-orange-500">
+                <p class="text-sm text-slate-500 font-medium">좋아요 0개 비율</p>
+                <h2 id="zeroLikesRate" class="text-3xl font-bold text-slate-800">0%</h2>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Daily Trend -->
+            <div class="card p-6">
+                <h3 class="text-lg font-bold text-slate-800 mb-4">일별 댓글 추이</h3>
+                <div class="chart-container">
+                    <canvas id="dailyTrendChart"></canvas>
+                </div>
+            </div>
+            <!-- Hourly Distribution -->
+            <div class="card p-6">
+                <h3 class="text-lg font-bold text-slate-800 mb-4">시간대별 댓글 분포 (0시-23시)</h3>
+                <div class="chart-container">
+                    <canvas id="hourlyDistChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tables Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- TOP 10 Likes -->
+            <div class="card overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b">
+                    <h3 class="font-bold text-slate-800">좋아요 TOP 10 댓글</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-100 text-slate-600 uppercase text-xs">
+                            <tr>
+                                <th class="px-4 py-3">작성자</th>
+                                <th class="px-4 py-3">댓글 내용</th>
+                                <th class="px-4 py-3">좋아요</th>
+                                <th class="px-4 py-3">답글</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topLikesTable" class="divide-y">
+                            <!-- JS will populate -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TOP 5 Replies -->
+            <div class="card overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b">
+                    <h3 class="font-bold text-slate-800">답글 많은 TOP 5</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-100 text-slate-600 uppercase text-xs">
+                            <tr>
+                                <th class="px-4 py-3">작성자</th>
+                                <th class="px-4 py-3">댓글 내용</th>
+                                <th class="px-4 py-3 text-right">답글수</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topRepliesTable" class="divide-y">
+                            <!-- JS will populate -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="fixed inset-0 bg-white/80 flex items-center justify-center z-50">
+            <div class="text-center">
+                <div class="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <p class="mt-2 font-medium text-slate-600">데이터를 분석 중입니다...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTfPYzibxFiQAjoU7KpkmlxgTMsI-5G4pJCnykjzn9TaMiXQQwIUH_iO0IqxqeJZ8eHah6NSAt_FV3H/pub?gid=0&single=true&output=csv';
+
+        window.onload = async () => {
+            fetchData();
+        };
+
+        async function fetchData() {
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: true,
+                dynamicTyping: true,
+                complete: function(results) {
+                    processData(results.data);
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                },
+                error: function(err) {
+                    console.error("CSV Loading Error:", err);
+                    alert("데이터를 불러오는데 실패했습니다.");
+                }
+            });
+        }
+
+        function processData(data) {
+            // Filter out empty rows if any
+            const cleanData = data.filter(d => d['작성자'] && d['댓글내용']);
+
+            // 1. Summary Stats
+            const totalComments = cleanData.length;
+            const totalLikes = cleanData.reduce((sum, d) => sum + (d['좋아요'] || 0), 0);
+            const avgLikes = totalComments > 0 ? (totalLikes / totalComments).toFixed(1) : 0;
+            const totalReplies = cleanData.reduce((sum, d) => sum + (d['답글수'] || 0), 0);
+            const zeroLikesCount = cleanData.filter(d => (d['좋아요'] || 0) === 0).length;
+            const zeroLikesRate = totalComments > 0 ? ((zeroLikesCount / totalComments) * 100).toFixed(1) : 0;
+
+            document.getElementById('totalComments').innerText = totalComments.toLocaleString();
+            document.getElementById('avgLikes').innerText = avgLikes;
+            document.getElementById('totalReplies').innerText = totalReplies.toLocaleString();
+            document.getElementById('zeroLikesRate').innerText = `${zeroLikesRate}%`;
+
+            // 2. Charts Data Processing
+            const dailyCounts = {};
+            const hourlyCounts = Array(24).fill(0);
+
+            cleanData.forEach(d => {
+                const dateObj = new Date(d['작성일시']);
+                if (isNaN(dateObj)) return;
+
+                // Date key (YYYY-MM-DD)
+                const dateStr = dateObj.toISOString().split('T')[0];
+                dailyCounts[dateStr] = (dailyCounts[dateStr] || 0) + 1;
+
+                // Hour index (0-23)
+                const hour = dateObj.getHours();
+                hourlyCounts[hour]++;
+            });
+
+            renderCharts(dailyCounts, hourlyCounts);
+
+            // 3. Tables Data Processing
+            // Top 10 Likes
+            const sortedByLikes = [...cleanData].sort((a, b) => (b['좋아요'] || 0) - (a['좋아요'] || 0)).slice(0, 10);
+            const likesTbody = document.getElementById('topLikesTable');
+            sortedByLikes.forEach(d => {
+                const row = `
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-3 font-semibold text-slate-700">${d['작성자']}</td>
+                        <td class="px-4 py-3 text-slate-600 truncate max-w-[200px]" title="${d['댓글내용']}">${d['댓글내용']}</td>
+                        <td class="px-4 py-3"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">${d['좋아요']}</span></td>
+                        <td class="px-4 py-3 text-slate-500">${d['답글수']}</td>
+                    </tr>
+                `;
+                likesTbody.insertAdjacentHTML('beforeend', row);
+            });
+
+            // Top 5 Replies
+            const sortedByReplies = [...cleanData].sort((a, b) => (b['답글수'] || 0) - (a['답글수'] || 0)).slice(0, 5);
+            const repliesTbody = document.getElementById('topRepliesTable');
+            sortedByReplies.forEach(d => {
+                const row = `
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-3 font-semibold text-slate-700">${d['작성자']}</td>
+                        <td class="px-4 py-3 text-slate-600 truncate max-w-[200px]" title="${d['댓글내용']}">${d['댓글내용']}</td>
+                        <td class="px-4 py-3 text-right font-bold text-purple-600">${d['답글수']}</td>
+                    </tr>
+                `;
+                repliesTbody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+
+        function renderCharts(dailyData, hourlyData) {
+            // Daily Chart
+            const sortedDates = Object.keys(dailyData).sort();
+            new Chart(document.getElementById('dailyTrendChart'), {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [{
+                        label: '댓글 수',
+                        data: sortedDates.map(date => dailyData[date]),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [5, 5] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // Hourly Chart (with Highlight)
+            const maxHourValue = Math.max(...hourlyData);
+            const backgroundColors = hourlyData.map(val => val === maxHourValue && val > 0 ? '#f97316' : '#94a3b8');
+            
+            new Chart(document.getElementById('hourlyDistChart'), {
+                type: 'bar',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => `${i}시`),
+                    datasets: [{
+                        label: '댓글 수',
+                        data: hourlyData,
+                        backgroundColor: backgroundColors,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `댓글 ${context.raw}개 ${context.raw === maxHourValue ? '(가장 활발!)' : ''}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [5, 5] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
