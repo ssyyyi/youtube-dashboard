@@ -17,6 +17,9 @@
         .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
         .chart-container { position: relative; height: 300px; width: 100%; }
         .highlight-bg { background-color: #eff6ff; border-left: 4px solid #3b82f6; }
+        .comment-text { white-space: pre-wrap; word-break: break-word; }
+        .read-more-btn { color: #3b82f6; font-weight: 600; font-size: 0.75rem; cursor: pointer; margin-left: 4px; }
+        .read-more-btn:hover { text-decoration: underline; }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -84,7 +87,7 @@
                         <thead class="bg-slate-100 text-slate-600 uppercase text-xs">
                             <tr>
                                 <th class="px-4 py-3">작성자</th>
-                                <th class="px-4 py-3">댓글 내용</th>
+                                <th class="px-4 py-3 min-w-[250px]">댓글 내용</th>
                                 <th class="px-4 py-3">좋아요</th>
                                 <th class="px-4 py-3">답글</th>
                             </tr>
@@ -106,7 +109,7 @@
                         <thead class="bg-slate-100 text-slate-600 uppercase text-xs">
                             <tr>
                                 <th class="px-4 py-3">작성자</th>
-                                <th class="px-4 py-3">댓글 내용</th>
+                                <th class="px-4 py-3 min-w-[250px]">댓글 내용</th>
                                 <th class="px-4 py-3 text-right">답글수</th>
                             </tr>
                         </thead>
@@ -150,8 +153,41 @@
             });
         }
 
+        // Helper function to handle text expansion
+        function formatComment(text) {
+            if (!text) return "";
+            const maxLength = 60;
+            if (text.length <= maxLength) return `<div class="comment-text text-slate-600">${text}</div>`;
+
+            const truncated = text.substring(0, maxLength);
+            const remaining = text.substring(maxLength);
+            
+            return `
+                <div class="comment-text text-slate-600">
+                    <span class="short-text">${truncated}...</span>
+                    <span class="full-text hidden">${text}</span>
+                    <button onclick="toggleComment(this)" class="read-more-btn">더보기</button>
+                </div>
+            `;
+        }
+
+        function toggleComment(btn) {
+            const container = btn.parentElement;
+            const shortText = container.querySelector('.short-text');
+            const fullText = container.querySelector('.full-text');
+            
+            if (fullText.classList.contains('hidden')) {
+                fullText.classList.remove('hidden');
+                shortText.classList.add('hidden');
+                btn.innerText = '접기';
+            } else {
+                fullText.classList.add('hidden');
+                shortText.classList.remove('hidden');
+                btn.innerText = '더보기';
+            }
+        }
+
         function processData(data) {
-            // Filter out empty rows if any
             const cleanData = data.filter(d => d['작성자'] && d['댓글내용']);
 
             // 1. Summary Stats
@@ -167,50 +203,44 @@
             document.getElementById('totalReplies').innerText = totalReplies.toLocaleString();
             document.getElementById('zeroLikesRate').innerText = `${zeroLikesRate}%`;
 
-            // 2. Charts Data Processing
+            // 2. Charts Data
             const dailyCounts = {};
             const hourlyCounts = Array(24).fill(0);
 
             cleanData.forEach(d => {
                 const dateObj = new Date(d['작성일시']);
                 if (isNaN(dateObj)) return;
-
-                // Date key (YYYY-MM-DD)
                 const dateStr = dateObj.toISOString().split('T')[0];
                 dailyCounts[dateStr] = (dailyCounts[dateStr] || 0) + 1;
-
-                // Hour index (0-23)
                 const hour = dateObj.getHours();
                 hourlyCounts[hour]++;
             });
 
             renderCharts(dailyCounts, hourlyCounts);
 
-            // 3. Tables Data Processing
-            // Top 10 Likes
-            const sortedByLikes = [...cleanData].sort((a, b) => (b['좋아요'] || 0) - (a['좋아요'] || 0)).slice(0, 10);
+            // 3. Tables
             const likesTbody = document.getElementById('topLikesTable');
+            const sortedByLikes = [...cleanData].sort((a, b) => (b['좋아요'] || 0) - (a['좋아요'] || 0)).slice(0, 10);
             sortedByLikes.forEach(d => {
                 const row = `
-                    <tr class="hover:bg-slate-50">
-                        <td class="px-4 py-3 font-semibold text-slate-700">${d['작성자']}</td>
-                        <td class="px-4 py-3 text-slate-600 truncate max-w-[200px]" title="${d['댓글내용']}">${d['댓글내용']}</td>
-                        <td class="px-4 py-3"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">${d['좋아요']}</span></td>
-                        <td class="px-4 py-3 text-slate-500">${d['답글수']}</td>
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-4 py-4 font-semibold text-slate-700 align-top">${d['작성자']}</td>
+                        <td class="px-4 py-4 align-top">${formatComment(d['댓글내용'])}</td>
+                        <td class="px-4 py-4 align-top"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">${d['좋아요']}</span></td>
+                        <td class="px-4 py-4 align-top text-slate-500">${d['답글수']}</td>
                     </tr>
                 `;
                 likesTbody.insertAdjacentHTML('beforeend', row);
             });
 
-            // Top 5 Replies
-            const sortedByReplies = [...cleanData].sort((a, b) => (b['답글수'] || 0) - (a['답글수'] || 0)).slice(0, 5);
             const repliesTbody = document.getElementById('topRepliesTable');
+            const sortedByReplies = [...cleanData].sort((a, b) => (b['답글수'] || 0) - (a['답글수'] || 0)).slice(0, 5);
             sortedByReplies.forEach(d => {
                 const row = `
-                    <tr class="hover:bg-slate-50">
-                        <td class="px-4 py-3 font-semibold text-slate-700">${d['작성자']}</td>
-                        <td class="px-4 py-3 text-slate-600 truncate max-w-[200px]" title="${d['댓글내용']}">${d['댓글내용']}</td>
-                        <td class="px-4 py-3 text-right font-bold text-purple-600">${d['답글수']}</td>
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-4 py-4 font-semibold text-slate-700 align-top">${d['작성자']}</td>
+                        <td class="px-4 py-4 align-top">${formatComment(d['댓글내용'])}</td>
+                        <td class="px-4 py-4 align-top text-right font-bold text-purple-600">${d['답글수']}</td>
                     </tr>
                 `;
                 repliesTbody.insertAdjacentHTML('beforeend', row);
@@ -218,7 +248,6 @@
         }
 
         function renderCharts(dailyData, hourlyData) {
-            // Daily Chart
             const sortedDates = Object.keys(dailyData).sort();
             new Chart(document.getElementById('dailyTrendChart'), {
                 type: 'line',
@@ -246,7 +275,6 @@
                 }
             });
 
-            // Hourly Chart (with Highlight)
             const maxHourValue = Math.max(...hourlyData);
             const backgroundColors = hourlyData.map(val => val === maxHourValue && val > 0 ? '#f97316' : '#94a3b8');
             
